@@ -1,24 +1,7 @@
 import { ROUTES_PATH } from '../constants/routes.js'
 import Logout from "./Logout.js"
 
-function clearInputFile(f){
-  if(f.value){
-    try{
-        f.value = ''; //for IE11, latest Chrome/Firefox/Opera...
-    }
-    catch(err){ }
-    if(f.value){ //for IE5 ~ IE10
-      var form = document.createElement('form'),
-          parentNode = f.parentNode, ref = f.nextSibling;
-      form.appendChild(f);
-      form.reset();
-      parentNode.insertBefore(f,ref);
-    }
-  }
-}
-
 export default class NewBill {
-  
   constructor({ document, onNavigate, store, localStorage }) {
     this.document = document
     this.onNavigate = onNavigate
@@ -32,51 +15,57 @@ export default class NewBill {
     this.billId = null
     new Logout({ document, localStorage, onNavigate })
   }
-
-  handleChangeFile = e => {
-    e.preventDefault()
-    let file = this.document.querySelector(`input[data-testid="file"]`).files[0]
-    //let file = e.target.files[0]
-    let filePath = e.target.value.split(/\\/g)
-    let fileName = filePath[filePath.length-1] 
-    let fileExt = fileName.split(/\./g)[fileName.split(/\./g).length-1]
-    console.log('file =', file)
-    console.log('filePath =', filePath)
-    console.log('fileName =', fileName)
-    console.log('fileExt =', fileExt)
-    if (fileExt == "jpg" || fileExt == "jpeg" || fileExt == "png") {
-
-      const formData = new FormData()
-      const email = JSON.parse(localStorage.getItem("user")).email
-      formData.append('file', file)
-      formData.append('email', email)
-
-      this.store
-        .bills()
-        .create({
-          data: formData,
-          headers: {
-            noContentType: true
-          }
-        })
-        .then(({fileUrl, key}) => {
-          console.log(fileUrl)
-          this.billId = key
-          this.fileUrl = fileUrl
-          this.fileName = fileName
-        }).catch(error => console.error(error))
-    }
-    else {
-      alert("Vous devez choisir un fichier JPG, JPEG ou PNG comme justificatif.")
-      /* let newFiles = new DataTransfer()
-      e.target.files = newFiles.files       // Empty FileList */
-      e.target.value = null     // Wrong file name not written on the page
-    }
-  }
   
+  handleChangeFile = e => {
+    // format jpg,jpgeg ou png seulement 
+    const extensionsAllowed = ["jpg", "jpeg", "png"]; 
+    const file = this.document.querySelector(`input[data-testid="file"]`).files[0]
+    let filePath = null
+    let fileName = null
+    //Enlever le dot = point image.jpg devient imagejpg
+    const extensionsCheck = file.name.split(".").pop();
+
+    if(extensionsAllowed.includes(extensionsCheck)){
+
+      filePath = e.target.value.split(/\\/g)
+      fileName = filePath[filePath.length-1]
+      
+
+      document.getElementById("btn-send-bill").disabled = false;
+
+    }else{
+      document.getElementById("btn-send-bill").disabled = true;
+      alert ('Select a file type .jpg, .jpeg or .png');
+      return;
+    }
+
+    const formData = new FormData()
+    const email = JSON.parse(localStorage.getItem("user")).email
+    formData.append('file', file)
+    formData.append('email', email)
+    
+
+    this.store
+      .bills()
+      .create({
+        data: formData,
+        headers: {
+          noContentType: true
+        }
+      })
+      .then(({fileUrl, key}) => {
+        console.log(fileUrl)                   
+        this.billId = key
+        this.fileUrl = fileUrl
+        this.fileName = fileName
+      }).catch(error => console.error(error))
+  }
+
   handleSubmit = e => {
     e.preventDefault()
+    console.log('e.target.querySelector(`input[data-testid="datepicker"]`).value', e.target.querySelector(`input[data-testid="datepicker"]`).value)
     const email = JSON.parse(localStorage.getItem("user")).email
+
     const bill = {
       email,
       type: e.target.querySelector(`select[data-testid="expense-type"]`).value,
@@ -95,6 +84,7 @@ export default class NewBill {
   }
 
   // not need to cover this function by tests
+  /* istanbul ignore next */
   updateBill = (bill) => {
     if (this.store) {
       this.store
